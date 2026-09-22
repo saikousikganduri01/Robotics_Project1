@@ -1,0 +1,2600 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <world name="ocean_world">
+
+    <!-- Core Systems -->
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="/home/kousik/gz_current_plugin/build/libCurrentSystem.so"
+            name="ocean_current_plugin::CurrentSystem">
+      <!-- Keep a very weak ambient current in the scene while excluding the
+           inspection robot and station assets. -->
+      <model_name_regex>^(submarine_cable|debris.*|trash.*|bottle.*|can.*|crate.*)$</model_name_regex>
+      <cable_model_name>submarine_cable</cable_model_name>
+      <cable_segment_collision_regex>segment_collision_.*</cable_segment_collision_regex>
+
+      <min_current_speed>0.015</min_current_speed>
+      <max_current_speed>0.035</max_current_speed>
+      <initial_current_speed>0.022</initial_current_speed>
+      <initial_heading_rad>0.12</initial_heading_rad>
+
+      <speed_time_constant>45.0</speed_time_constant>
+      <heading_time_constant>60.0</heading_time_constant>
+      <speed_noise_stddev>0.0025</speed_noise_stddev>
+      <heading_noise_stddev>0.01</heading_noise_stddev>
+      <vertical_noise_stddev>0.0004</vertical_noise_stddev>
+
+      <linear_drag_coefficient>0.18</linear_drag_coefficient>
+      <max_accel>0.015</max_accel>
+      <cable_linear_drag_scale>0.04</cable_linear_drag_scale>
+
+      <cable_force_scale>2.2</cable_force_scale>
+      <cable_sway_amplitude>0.015</cable_sway_amplitude>
+      <cable_sway_frequency>0.07</cable_sway_frequency>
+      <cable_sway_damping>7.5</cable_sway_damping>
+      <cable_max_force_per_segment>0.03</cable_max_force_per_segment>
+      <cable_anchor_linear_stiffness>55.0</cable_anchor_linear_stiffness>
+      <cable_anchor_linear_damping>180.0</cable_anchor_linear_damping>
+      <cable_anchor_angular_stiffness>32.0</cable_anchor_angular_stiffness>
+      <cable_anchor_angular_damping>70.0</cable_anchor_angular_damping>
+      <cable_anchor_max_force>8.0</cable_anchor_max_force>
+      <cable_anchor_max_torque>6.0</cable_anchor_max_torque>
+
+      <discover_period_ms>1500</discover_period_ms>
+      <publish_period_ms>250</publish_period_ms>
+      <random_seed>17</random_seed>
+    </plugin>
+
+    <!-- Gravity -->
+    <gravity>0 0 0</gravity>
+
+    <!-- Lighting -->
+    <light type="directional" name="sun">
+      <pose>0 0 20 0 0 0</pose>
+      <direction>0 0 -1</direction>
+      <diffuse>0.62 0.79 1.0 1</diffuse>
+      <specular>0.14 0.22 0.32 1</specular>
+    </light>
+
+    <!-- Soft top light to suggest shallow-water illumination -->
+    <light type="point" name="top_water_glow">
+      <pose>0 0 24 0 0 0</pose>
+      <diffuse>0.34 0.56 0.82 1</diffuse>
+      <specular>0.08 0.14 0.2 1</specular>
+      <attenuation>
+        <range>120</range>
+        <linear>0.01</linear>
+        <constant>0.8</constant>
+        <quadratic>0.0015</quadratic>
+      </attenuation>
+    </light>
+
+    <!-- Scene -->
+    <scene>
+      <ambient>0.06 0.12 0.2 1</ambient>
+      <background>0.03 0.09 0.18 1</background>
+      <!-- Blue depth haze to create dark-to-light water feel -->
+      <fog>
+        <color>0.07 0.16 0.28 1</color>
+        <type>linear</type>
+        <start>10</start>
+        <end>95</end>
+      </fog>
+    </scene>
+
+    <!-- Sea surface reference -->
+    <model name="sea_surface">
+      <static>true</static>
+      <pose>0 0 2.20 0 0 0</pose>
+      <link name="surface_link">
+        <visual name="surface_visual">
+          <geometry>
+            <box><size>90 90 0.04</size></box>
+          </geometry>
+          <transparency>0.55</transparency>
+          <material>
+            <ambient>0.22 0.46 0.70 0.35</ambient>
+            <diffuse>0.22 0.46 0.70 0.35</diffuse>
+            <specular>0.08 0.12 0.18 0.35</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Seafloor -->
+    <model name="seafloor">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>80 80 1</size></box>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>8.0</mu>
+                <mu2>8.0</mu2>
+                <slip1>0.001</slip1>
+                <slip2>0.001</slip2>
+              </ode>
+            </friction>
+            <contact>
+              <ode>
+                <kp>5000000</kp>
+                <kd>50000</kd>
+                <min_depth>0.0005</min_depth>
+                <max_vel>0.02</max_vel>
+              </ode>
+            </contact>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>80 80 1</size></box>
+          </geometry>
+          <material>
+            <ambient>0.17 0.15 0.12 1</ambient>
+            <diffuse>0.24 0.21 0.17 1</diffuse>
+            <specular>0.02 0.02 0.02 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="debug_center_box">
+      <static>true</static>
+      <pose>0 0 1 0 0 0</pose>
+      <link name="debug_link">
+        <collision name="debug_collision">
+          <geometry>
+            <box><size>0.5 0.5 0.5</size></box>
+          </geometry>
+        </collision>
+        <visual name="debug_visual">
+          <geometry>
+            <box><size>0.5 0.5 0.5</size></box>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+            <emissive>0.2 0 0 1</emissive>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Rocks: irregular mixed-shape clusters -->
+    <model name="rock1">
+      <static>true</static>
+      <pose>-30 -5 1.25 0.1 -0.2 0.3</pose>
+      <link name="link"><inertial><mass>400</mass></inertial>
+        <collision name="c1"><geometry><sphere><radius>0.88</radius></sphere></geometry></collision>
+        <collision name="c2"><pose>0.58 0.18 0.14 0 0.2 0</pose><geometry><box><size>0.92 0.74 0.62</size></box></geometry></collision>
+        <collision name="c3"><pose>-0.42 -0.26 0.25 0.1 0.4 0</pose><geometry><cylinder><radius>0.32</radius><length>0.78</length></cylinder></geometry></collision>
+        <visual name="v1"><geometry><sphere><radius>0.90</radius></sphere></geometry><material><ambient>0.42 0.39 0.35 1</ambient><diffuse>0.42 0.39 0.35 1</diffuse></material></visual>
+        <visual name="v2"><pose>0.56 0.21 0.12 0.2 -0.1 0.3</pose><geometry><box><size>0.95 0.72 0.60</size></box></geometry><material><ambient>0.46 0.42 0.37 1</ambient><diffuse>0.46 0.42 0.37 1</diffuse></material></visual>
+        <visual name="v3"><pose>-0.40 -0.23 0.28 0.2 0.5 0.1</pose><geometry><cylinder><radius>0.34</radius><length>0.76</length></cylinder></geometry><material><ambient>0.38 0.35 0.32 1</ambient><diffuse>0.38 0.35 0.32 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="rock2">
+      <static>true</static>
+      <pose>-18 20 1.05 -0.2 0.15 -0.5</pose>
+      <link name="link"><inertial><mass>360</mass></inertial>
+        <collision name="c1"><geometry><box><size>1.45 1.05 0.84</size></box></geometry></collision>
+        <collision name="c2"><pose>0.54 -0.18 0.28 0 0.3 0</pose><geometry><sphere><radius>0.48</radius></sphere></geometry></collision>
+        <collision name="c3"><pose>-0.62 0.32 0.18 0.3 0 0.2</pose><geometry><box><size>0.68 0.52 0.58</size></box></geometry></collision>
+        <visual name="v1"><geometry><box><size>1.42 1.02 0.82</size></box></geometry><material><ambient>0.45 0.41 0.36 1</ambient><diffuse>0.45 0.41 0.36 1</diffuse></material></visual>
+        <visual name="v2"><pose>0.52 -0.14 0.27 0.2 0.1 0</pose><geometry><sphere><radius>0.50</radius></sphere></geometry><material><ambient>0.4 0.37 0.33 1</ambient><diffuse>0.4 0.37 0.33 1</diffuse></material></visual>
+        <visual name="v3"><pose>-0.60 0.28 0.20 0.3 0.2 -0.2</pose><geometry><box><size>0.70 0.54 0.60</size></box></geometry><material><ambient>0.36 0.33 0.3 1</ambient><diffuse>0.36 0.33 0.3 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="rock3">
+      <static>true</static>
+      <pose>12 -25 1.45 0.25 -0.1 0.2</pose>
+      <link name="link"><inertial><mass>420</mass></inertial>
+        <collision name="c1"><geometry><sphere><radius>0.92</radius></sphere></geometry></collision>
+        <collision name="c2"><pose>-0.58 0 0.10 0.1 0.4 0.2</pose><geometry><box><size>0.88 0.72 0.60</size></box></geometry></collision>
+        <collision name="c3"><pose>0.46 0.35 0.30 0.4 0 0.5</pose><geometry><cylinder><radius>0.30</radius><length>0.72</length></cylinder></geometry></collision>
+        <visual name="v1"><geometry><sphere><radius>0.95</radius></sphere></geometry><material><ambient>0.43 0.4 0.36 1</ambient><diffuse>0.43 0.4 0.36 1</diffuse></material></visual>
+        <visual name="v2"><pose>-0.58 0.05 0.10 0.1 0.5 0.2</pose><geometry><box><size>0.92 0.75 0.62</size></box></geometry><material><ambient>0.37 0.35 0.31 1</ambient><diffuse>0.37 0.35 0.31 1</diffuse></material></visual>
+        <visual name="v3"><pose>0.44 0.33 0.30 0.4 0.1 0.5</pose><geometry><cylinder><radius>0.31</radius><length>0.74</length></cylinder></geometry><material><ambient>0.47 0.43 0.38 1</ambient><diffuse>0.47 0.43 0.38 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="rock4">
+      <static>true</static>
+      <pose>28 8 1.15 -0.15 0.2 -0.25</pose>
+      <link name="link"><inertial><mass>320</mass></inertial>
+        <collision name="c1"><geometry><box><size>1.18 0.92 0.72</size></box></geometry></collision>
+        <collision name="c2"><pose>0.42 -0.34 0.22 0.3 0.1 0.2</pose><geometry><sphere><radius>0.40</radius></sphere></geometry></collision>
+        <collision name="c3"><pose>-0.38 0.30 0.16 0 0.2 -0.2</pose><geometry><sphere><radius>0.34</radius></sphere></geometry></collision>
+        <visual name="v1"><geometry><box><size>1.20 0.94 0.74</size></box></geometry><material><ambient>0.41 0.38 0.34 1</ambient><diffuse>0.41 0.38 0.34 1</diffuse></material></visual>
+        <visual name="v2"><pose>0.42 -0.34 0.24 0.2 0.1 0.2</pose><geometry><sphere><radius>0.42</radius></sphere></geometry><material><ambient>0.47 0.44 0.39 1</ambient><diffuse>0.47 0.44 0.39 1</diffuse></material></visual>
+        <visual name="v3"><pose>-0.36 0.28 0.18 0.1 0.2 -0.1</pose><geometry><sphere><radius>0.36</radius></sphere></geometry><material><ambient>0.35 0.33 0.29 1</ambient><diffuse>0.35 0.33 0.29 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="rock5"><static>true</static><pose>-4 32 1.35 -0.1 0.2 -0.2</pose><link name="link"><inertial><mass>320</mass></inertial><collision name="c1"><geometry><box><size>1.05 0.80 0.64</size></box></geometry></collision><collision name="c2"><pose>0.3 -0.25 0.16 0.3 0.1 0.2</pose><geometry><sphere><radius>0.33</radius></sphere></geometry></collision><collision name="c3"><pose>-0.28 0.22 0.12 0 0.2 -0.2</pose><geometry><sphere><radius>0.29</radius></sphere></geometry></collision><visual name="v1"><geometry><box><size>1.08 0.82 0.66</size></box></geometry><material><ambient>0.41 0.38 0.34 1</ambient><diffuse>0.41 0.38 0.34 1</diffuse></material></visual><visual name="v2"><pose>0.3 -0.25 0.17 0.2 0.1 0.2</pose><geometry><sphere><radius>0.35</radius></sphere></geometry><material><ambient>0.47 0.44 0.39 1</ambient><diffuse>0.47 0.44 0.39 1</diffuse></material></visual><visual name="v3"><pose>-0.28 0.2 0.12 0.1 0.2 -0.1</pose><geometry><sphere><radius>0.30</radius></sphere></geometry><material><ambient>0.35 0.33 0.29 1</ambient><diffuse>0.35 0.33 0.29 1</diffuse></material></visual></link></model>
+    <model name="rock6"><static>true</static><pose>24 24 1.55 0.1 -0.2 0.3</pose><link name="link"><inertial><mass>400</mass></inertial><collision name="c1"><geometry><sphere><radius>0.95</radius></sphere></geometry></collision><collision name="c2"><pose>0.5 0.15 0.1 0 0.2 0</pose><geometry><box><size>0.95 0.78 0.66</size></box></geometry></collision><collision name="c3"><pose>-0.35 -0.2 0.2 0.1 0.4 0</pose><geometry><cylinder><radius>0.34</radius><length>0.82</length></cylinder></geometry></collision><visual name="v1"><geometry><sphere><radius>0.98</radius></sphere></geometry><material><ambient>0.42 0.39 0.35 1</ambient><diffuse>0.42 0.39 0.35 1</diffuse></material></visual><visual name="v2"><pose>0.48 0.18 0.08 0.2 -0.1 0.3</pose><geometry><box><size>1.00 0.80 0.68</size></box></geometry><material><ambient>0.46 0.42 0.37 1</ambient><diffuse>0.46 0.42 0.37 1</diffuse></material></visual><visual name="v3"><pose>-0.35 -0.2 0.22 0.2 0.5 0.1</pose><geometry><cylinder><radius>0.36</radius><length>0.80</length></cylinder></geometry><material><ambient>0.38 0.35 0.32 1</ambient><diffuse>0.38 0.35 0.32 1</diffuse></material></visual></link></model>
+    <model name="rock7"><static>true</static><pose>-26 -22 1.20 -0.2 0.15 -0.5</pose><link name="link"><inertial><mass>360</mass></inertial><collision name="c1"><geometry><box><size>1.35 1.00 0.76</size></box></geometry></collision><collision name="c2"><pose>0.45 -0.15 0.2 0 0.3 0</pose><geometry><sphere><radius>0.44</radius></sphere></geometry></collision><collision name="c3"><pose>-0.5 0.25 0.1 0.3 0 0.2</pose><geometry><box><size>0.62 0.50 0.55</size></box></geometry></collision><visual name="v1"><geometry><box><size>1.38 1.04 0.80</size></box></geometry><material><ambient>0.45 0.41 0.36 1</ambient><diffuse>0.45 0.41 0.36 1</diffuse></material></visual><visual name="v2"><pose>0.45 -0.12 0.2 0.2 0.1 0</pose><geometry><sphere><radius>0.46</radius></sphere></geometry><material><ambient>0.4 0.37 0.33 1</ambient><diffuse>0.4 0.37 0.33 1</diffuse></material></visual><visual name="v3"><pose>-0.5 0.22 0.12 0.3 0.2 -0.2</pose><geometry><box><size>0.66 0.54 0.60</size></box></geometry><material><ambient>0.36 0.33 0.3 1</ambient><diffuse>0.36 0.33 0.3 1</diffuse></material></visual></link></model>
+    <model name="rock8"><static>true</static><pose>33 -2 1.70 0.25 -0.1 0.2</pose><link name="link"><inertial><mass>420</mass></inertial><collision name="c1"><geometry><sphere><radius>0.90</radius></sphere></geometry></collision><collision name="c2"><pose>-0.45 0 0.05 0.1 0.4 0.2</pose><geometry><box><size>0.86 0.72 0.60</size></box></geometry></collision><collision name="c3"><pose>0.35 0.28 0.22 0.4 0 0.5</pose><geometry><cylinder><radius>0.29</radius><length>0.70</length></cylinder></geometry></collision><visual name="v1"><geometry><sphere><radius>0.92</radius></sphere></geometry><material><ambient>0.43 0.4 0.36 1</ambient><diffuse>0.43 0.4 0.36 1</diffuse></material></visual><visual name="v2"><pose>-0.45 0.03 0.05 0.1 0.5 0.2</pose><geometry><box><size>0.90 0.74 0.62</size></box></geometry><material><ambient>0.37 0.35 0.31 1</ambient><diffuse>0.37 0.35 0.31 1</diffuse></material></visual><visual name="v3"><pose>0.35 0.26 0.22 0.4 0.1 0.5</pose><geometry><cylinder><radius>0.30</radius><length>0.72</length></cylinder></geometry><material><ambient>0.47 0.43 0.38 1</ambient><diffuse>0.47 0.43 0.38 1</diffuse></material></visual></link></model>
+    <model name="rock9"><static>true</static><pose>6 16 1.10 -0.1 0.2 -0.2</pose><link name="link"><inertial><mass>320</mass></inertial><collision name="c1"><geometry><box><size>1.00 0.78 0.60</size></box></geometry></collision><collision name="c2"><pose>0.3 -0.25 0.16 0.3 0.1 0.2</pose><geometry><sphere><radius>0.31</radius></sphere></geometry></collision><collision name="c3"><pose>-0.28 0.22 0.12 0 0.2 -0.2</pose><geometry><sphere><radius>0.27</radius></sphere></geometry></collision><visual name="v1"><geometry><box><size>1.02 0.80 0.62</size></box></geometry><material><ambient>0.41 0.38 0.34 1</ambient><diffuse>0.41 0.38 0.34 1</diffuse></material></visual><visual name="v2"><pose>0.3 -0.25 0.17 0.2 0.1 0.2</pose><geometry><sphere><radius>0.33</radius></sphere></geometry><material><ambient>0.47 0.44 0.39 1</ambient><diffuse>0.47 0.44 0.39 1</diffuse></material></visual><visual name="v3"><pose>-0.28 0.2 0.12 0.1 0.2 -0.1</pose><geometry><sphere><radius>0.28</radius></sphere></geometry><material><ambient>0.35 0.33 0.29 1</ambient><diffuse>0.35 0.33 0.29 1</diffuse></material></visual></link></model>
+    <model name="rock10"><static>true</static><pose>-12 -30 1.45 0.1 -0.2 0.3</pose><link name="link"><inertial><mass>400</mass></inertial><collision name="c1"><geometry><sphere><radius>0.82</radius></sphere></geometry></collision><collision name="c2"><pose>0.5 0.15 0.1 0 0.2 0</pose><geometry><box><size>0.84 0.68 0.58</size></box></geometry></collision><collision name="c3"><pose>-0.35 -0.2 0.2 0.1 0.4 0</pose><geometry><cylinder><radius>0.29</radius><length>0.70</length></cylinder></geometry></collision><visual name="v1"><geometry><sphere><radius>0.86</radius></sphere></geometry><material><ambient>0.42 0.39 0.35 1</ambient><diffuse>0.42 0.39 0.35 1</diffuse></material></visual><visual name="v2"><pose>0.48 0.18 0.08 0.2 -0.1 0.3</pose><geometry><box><size>0.88 0.70 0.58</size></box></geometry><material><ambient>0.46 0.42 0.37 1</ambient><diffuse>0.46 0.42 0.37 1</diffuse></material></visual><visual name="v3"><pose>-0.35 -0.2 0.22 0.2 0.5 0.1</pose><geometry><cylinder><radius>0.31</radius><length>0.68</length></cylinder></geometry><material><ambient>0.38 0.35 0.32 1</ambient><diffuse>0.38 0.35 0.32 1</diffuse></material></visual></link></model>
+
+    <!-- Large terrain mountains placed away from cable / robot corridor -->
+    <model name="mountain_corner_nw">
+      <static>true</static>
+      <pose>-35 35 0 0 0 0</pose>
+      <link name="mountain_link">
+        <inertial><mass>6500</mass></inertial>
+
+        <collision name="base_skirt_collision">
+          <pose>0 0 2.1 0 0 0</pose>
+          <geometry><cone><radius>8.4</radius><length>4.2</length></cone></geometry>
+        </collision>
+        <collision name="main_spine_collision">
+          <pose>0.4 -0.3 6.7 0.05 -0.06 0.18</pose>
+          <geometry><cone><radius>4.8</radius><length>9.8</length></cone></geometry>
+        </collision>
+        <collision name="north_peak_collision">
+          <pose>-1.4 2.1 8.4 -0.04 0.03 0.32</pose>
+          <geometry><cone><radius>3.0</radius><length>6.2</length></cone></geometry>
+        </collision>
+        <collision name="south_peak_collision">
+          <pose>2.0 -2.4 7.4 0.03 -0.08 -0.24</pose>
+          <geometry><cone><radius>2.6</radius><length>5.4</length></cone></geometry>
+        </collision>
+        <collision name="west_ridge_collision">
+          <pose>-4.9 0.9 2.4 0.06 0.14 0.2</pose>
+          <geometry><box><size>5.8 2.2 2.9</size></box></geometry>
+        </collision>
+        <collision name="east_ridge_collision">
+          <pose>4.8 -1.0 2.2 -0.05 0.11 -0.28</pose>
+          <geometry><box><size>5.2 2.0 2.6</size></box></geometry>
+        </collision>
+        <collision name="terrace_left_collision">
+          <pose>-2.6 -3.5 1.4 0.12 0.02 0.3</pose>
+          <geometry><box><size>3.4 2.1 1.2</size></box></geometry>
+        </collision>
+        <collision name="terrace_right_collision">
+          <pose>3.1 3.0 1.6 -0.08 0.1 -0.22</pose>
+          <geometry><box><size>3.1 2.0 1.3</size></box></geometry>
+        </collision>
+        <collision name="talus_a_collision">
+          <pose>-5.9 -2.7 0.95 0 0 0</pose>
+          <geometry><sphere><radius>1.6</radius></sphere></geometry>
+        </collision>
+        <collision name="talus_b_collision">
+          <pose>5.6 2.8 0.9 0 0 0</pose>
+          <geometry><sphere><radius>1.5</radius></sphere></geometry>
+        </collision>
+        <collision name="mid_connector_a_collision">
+          <pose>-1.1 0.6 4.6 0 0 0</pose>
+          <geometry><sphere><radius>2.2</radius></sphere></geometry>
+        </collision>
+        <collision name="mid_connector_b_collision">
+          <pose>1.6 -1.2 4.1 0 0 0</pose>
+          <geometry><sphere><radius>2.0</radius></sphere></geometry>
+        </collision>
+        <collision name="mid_connector_c_collision">
+          <pose>0.2 1.8 3.7 0 0 0</pose>
+          <geometry><sphere><radius>1.8</radius></sphere></geometry>
+        </collision>
+
+        <visual name="base_skirt_visual">
+          <pose>0 0 2.1 0 0 0</pose>
+          <geometry><cone><radius>8.6</radius><length>4.3</length></cone></geometry>
+          <material><ambient>0.20 0.20 0.21 1</ambient><diffuse>0.20 0.20 0.21 1</diffuse></material>
+        </visual>
+        <visual name="main_spine_visual">
+          <pose>0.4 -0.3 6.7 0.05 -0.06 0.18</pose>
+          <geometry><cone><radius>4.9</radius><length>10.0</length></cone></geometry>
+          <material><ambient>0.24 0.24 0.25 1</ambient><diffuse>0.24 0.24 0.25 1</diffuse></material>
+        </visual>
+        <visual name="north_peak_visual">
+          <pose>-1.4 2.1 8.4 -0.04 0.03 0.32</pose>
+          <geometry><cone><radius>3.1</radius><length>6.3</length></cone></geometry>
+          <material><ambient>0.27 0.27 0.28 1</ambient><diffuse>0.27 0.27 0.28 1</diffuse></material>
+        </visual>
+        <visual name="south_peak_visual">
+          <pose>2.0 -2.4 7.4 0.03 -0.08 -0.24</pose>
+          <geometry><cone><radius>2.7</radius><length>5.5</length></cone></geometry>
+          <material><ambient>0.22 0.22 0.23 1</ambient><diffuse>0.22 0.22 0.23 1</diffuse></material>
+        </visual>
+        <visual name="west_ridge_visual">
+          <pose>-4.9 0.9 2.4 0.06 0.14 0.2</pose>
+          <geometry><box><size>5.9 2.3 3.0</size></box></geometry>
+          <material><ambient>0.18 0.18 0.19 1</ambient><diffuse>0.18 0.18 0.19 1</diffuse></material>
+        </visual>
+        <visual name="east_ridge_visual">
+          <pose>4.8 -1.0 2.2 -0.05 0.11 -0.28</pose>
+          <geometry><box><size>5.3 2.1 2.7</size></box></geometry>
+          <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+        </visual>
+        <visual name="terrace_left_visual">
+          <pose>-2.6 -3.5 1.4 0.12 0.02 0.3</pose>
+          <geometry><box><size>3.5 2.2 1.25</size></box></geometry>
+          <material><ambient>0.23 0.23 0.24 1</ambient><diffuse>0.23 0.23 0.24 1</diffuse></material>
+        </visual>
+        <visual name="terrace_right_visual">
+          <pose>3.1 3.0 1.6 -0.08 0.1 -0.22</pose>
+          <geometry><box><size>3.2 2.1 1.35</size></box></geometry>
+          <material><ambient>0.26 0.26 0.27 1</ambient><diffuse>0.26 0.26 0.27 1</diffuse></material>
+        </visual>
+        <visual name="talus_a_visual">
+          <pose>-5.9 -2.7 0.95 0 0 0</pose>
+          <geometry><sphere><radius>1.7</radius></sphere></geometry>
+          <material><ambient>0.17 0.17 0.18 1</ambient><diffuse>0.17 0.17 0.18 1</diffuse></material>
+        </visual>
+        <visual name="talus_b_visual">
+          <pose>5.6 2.8 0.9 0 0 0</pose>
+          <geometry><sphere><radius>1.6</radius></sphere></geometry>
+          <material><ambient>0.19 0.19 0.20 1</ambient><diffuse>0.19 0.19 0.20 1</diffuse></material>
+        </visual>
+        <visual name="mid_connector_a_visual">
+          <pose>-1.1 0.6 4.6 0 0 0</pose>
+          <geometry><sphere><radius>2.3</radius></sphere></geometry>
+          <material><ambient>0.22 0.22 0.23 1</ambient><diffuse>0.22 0.22 0.23 1</diffuse></material>
+        </visual>
+        <visual name="mid_connector_b_visual">
+          <pose>1.6 -1.2 4.1 0 0 0</pose>
+          <geometry><sphere><radius>2.1</radius></sphere></geometry>
+          <material><ambient>0.24 0.24 0.25 1</ambient><diffuse>0.24 0.24 0.25 1</diffuse></material>
+        </visual>
+        <visual name="mid_connector_c_visual">
+          <pose>0.2 1.8 3.7 0 0 0</pose>
+          <geometry><sphere><radius>1.9</radius></sphere></geometry>
+          <material><ambient>0.20 0.20 0.21 1</ambient><diffuse>0.20 0.20 0.21 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="mountain_far_se">
+      <static>true</static>
+      <pose>34 -34 0 0 0 0</pose>
+      <link name="mountain_link">
+        <inertial><mass>6800</mass></inertial>
+
+        <collision name="base_skirt_collision">
+          <pose>0 0 2.3 0 0 0</pose>
+          <geometry><cone><radius>8.9</radius><length>4.6</length></cone></geometry>
+        </collision>
+        <collision name="main_spine_collision">
+          <pose>-0.5 0.6 7.0 -0.04 0.08 -0.2</pose>
+          <geometry><cone><radius>5.1</radius><length>10.4</length></cone></geometry>
+        </collision>
+        <collision name="east_peak_collision">
+          <pose>2.3 2.0 8.0 0.06 -0.05 0.24</pose>
+          <geometry><cone><radius>2.9</radius><length>5.8</length></cone></geometry>
+        </collision>
+        <collision name="west_peak_collision">
+          <pose>-2.7 -2.2 8.2 -0.05 0.02 -0.34</pose>
+          <geometry><cone><radius>3.2</radius><length>6.5</length></cone></geometry>
+        </collision>
+        <collision name="north_ridge_collision">
+          <pose>0.8 5.0 2.5 0.11 -0.07 0.18</pose>
+          <geometry><box><size>2.4 5.9 2.8</size></box></geometry>
+        </collision>
+        <collision name="south_ridge_collision">
+          <pose>-1.0 -4.9 2.3 -0.1 0.08 -0.25</pose>
+          <geometry><box><size>2.3 5.4 2.5</size></box></geometry>
+        </collision>
+        <collision name="buttress_left_collision">
+          <pose>-5.2 1.4 1.8 0.07 -0.1 0.28</pose>
+          <geometry><box><size>3.8 2.2 1.8</size></box></geometry>
+        </collision>
+        <collision name="buttress_right_collision">
+          <pose>5.4 -1.8 1.9 -0.08 0.12 -0.2</pose>
+          <geometry><box><size>4.0 2.3 1.9</size></box></geometry>
+        </collision>
+        <collision name="talus_c_collision">
+          <pose>-6.3 -2.8 1.0 0 0 0</pose>
+          <geometry><sphere><radius>1.7</radius></sphere></geometry>
+        </collision>
+        <collision name="talus_d_collision">
+          <pose>6.1 3.0 1.0 0 0 0</pose>
+          <geometry><sphere><radius>1.8</radius></sphere></geometry>
+        </collision>
+        <collision name="mid_connector_d_collision">
+          <pose>-1.4 -0.4 4.9 0 0 0</pose>
+          <geometry><sphere><radius>2.3</radius></sphere></geometry>
+        </collision>
+        <collision name="mid_connector_e_collision">
+          <pose>1.8 1.1 4.3 0 0 0</pose>
+          <geometry><sphere><radius>2.0</radius></sphere></geometry>
+        </collision>
+        <collision name="mid_connector_f_collision">
+          <pose>0.1 -2.0 3.8 0 0 0</pose>
+          <geometry><sphere><radius>1.9</radius></sphere></geometry>
+        </collision>
+
+        <visual name="base_skirt_visual">
+          <pose>0 0 2.3 0 0 0</pose>
+          <geometry><cone><radius>9.0</radius><length>4.7</length></cone></geometry>
+          <material><ambient>0.19 0.19 0.20 1</ambient><diffuse>0.19 0.19 0.20 1</diffuse></material>
+        </visual>
+        <visual name="main_spine_visual">
+          <pose>-0.5 0.6 7.0 -0.04 0.08 -0.2</pose>
+          <geometry><cone><radius>5.2</radius><length>10.6</length></cone></geometry>
+          <material><ambient>0.23 0.23 0.24 1</ambient><diffuse>0.23 0.23 0.24 1</diffuse></material>
+        </visual>
+        <visual name="east_peak_visual">
+          <pose>2.3 2.0 8.0 0.06 -0.05 0.24</pose>
+          <geometry><cone><radius>3.0</radius><length>5.9</length></cone></geometry>
+          <material><ambient>0.26 0.26 0.27 1</ambient><diffuse>0.26 0.26 0.27 1</diffuse></material>
+        </visual>
+        <visual name="west_peak_visual">
+          <pose>-2.7 -2.2 8.2 -0.05 0.02 -0.34</pose>
+          <geometry><cone><radius>3.3</radius><length>6.6</length></cone></geometry>
+          <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+        </visual>
+        <visual name="north_ridge_visual">
+          <pose>0.8 5.0 2.5 0.11 -0.07 0.18</pose>
+          <geometry><box><size>2.5 6.0 2.9</size></box></geometry>
+          <material><ambient>0.17 0.17 0.18 1</ambient><diffuse>0.17 0.17 0.18 1</diffuse></material>
+        </visual>
+        <visual name="south_ridge_visual">
+          <pose>-1.0 -4.9 2.3 -0.1 0.08 -0.25</pose>
+          <geometry><box><size>2.4 5.5 2.6</size></box></geometry>
+          <material><ambient>0.20 0.20 0.21 1</ambient><diffuse>0.20 0.20 0.21 1</diffuse></material>
+        </visual>
+        <visual name="buttress_left_visual">
+          <pose>-5.2 1.4 1.8 0.07 -0.1 0.28</pose>
+          <geometry><box><size>3.9 2.3 1.9</size></box></geometry>
+          <material><ambient>0.22 0.22 0.23 1</ambient><diffuse>0.22 0.22 0.23 1</diffuse></material>
+        </visual>
+        <visual name="buttress_right_visual">
+          <pose>5.4 -1.8 1.9 -0.08 0.12 -0.2</pose>
+          <geometry><box><size>4.1 2.4 2.0</size></box></geometry>
+          <material><ambient>0.24 0.24 0.25 1</ambient><diffuse>0.24 0.24 0.25 1</diffuse></material>
+        </visual>
+        <visual name="talus_c_visual">
+          <pose>-6.3 -2.8 1.0 0 0 0</pose>
+          <geometry><sphere><radius>1.8</radius></sphere></geometry>
+          <material><ambient>0.16 0.16 0.17 1</ambient><diffuse>0.16 0.16 0.17 1</diffuse></material>
+        </visual>
+        <visual name="talus_d_visual">
+          <pose>6.1 3.0 1.0 0 0 0</pose>
+          <geometry><sphere><radius>1.9</radius></sphere></geometry>
+          <material><ambient>0.18 0.18 0.19 1</ambient><diffuse>0.18 0.18 0.19 1</diffuse></material>
+        </visual>
+        <visual name="mid_connector_d_visual">
+          <pose>-1.4 -0.4 4.9 0 0 0</pose>
+          <geometry><sphere><radius>2.4</radius></sphere></geometry>
+          <material><ambient>0.23 0.23 0.24 1</ambient><diffuse>0.23 0.23 0.24 1</diffuse></material>
+        </visual>
+        <visual name="mid_connector_e_visual">
+          <pose>1.8 1.1 4.3 0 0 0</pose>
+          <geometry><sphere><radius>2.1</radius></sphere></geometry>
+          <material><ambient>0.25 0.25 0.26 1</ambient><diffuse>0.25 0.25 0.26 1</diffuse></material>
+        </visual>
+        <visual name="mid_connector_f_visual">
+          <pose>0.1 -2.0 3.8 0 0 0</pose>
+          <geometry><sphere><radius>2.0</radius></sphere></geometry>
+          <material><ambient>0.21 0.21 0.22 1</ambient><diffuse>0.21 0.21 0.22 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+<!-- SEAWEED 1 -->
+<model name="seaweed1">
+  <static>false</static>
+  <pose>-22.00 -14.00 1.15 0 0 0</pose>
+
+  <link name="body1">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.07</radius>
+          <length>1.2</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.78 0 1</ambient>
+        <diffuse>0 0.78 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed2">
+  <static>false</static>
+  <pose>-21.72 -13.94 1.25 0 0 0</pose>
+
+  <link name="body2">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.08</radius>
+          <length>1.4</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.74 0 1</ambient>
+        <diffuse>0 0.74 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed3">
+  <static>false</static>
+  <pose>-22.12 -13.70 1.35 0 0 0</pose>
+
+  <link name="body3">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.08</radius>
+          <length>1.6</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.82 0 1</ambient>
+        <diffuse>0 0.82 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed4">
+  <static>false</static>
+  <pose>-22.22 -14.24 1.20 0 0 0</pose>
+
+  <link name="body4">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.07</radius>
+          <length>1.3</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.76 0 1</ambient>
+        <diffuse>0 0.76 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed5">
+  <static>false</static>
+  <pose>14.00 10.00 1.20 0 0 0</pose>
+
+  <link name="body5">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.08</radius>
+          <length>1.3</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.80 0 1</ambient>
+        <diffuse>0 0.80 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed6">
+  <static>false</static>
+  <pose>14.28 10.06 1.30 0 0 0</pose>
+
+  <link name="body6">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.09</radius>
+          <length>1.5</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.86 0 1</ambient>
+        <diffuse>0 0.86 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed7">
+  <static>false</static>
+  <pose>13.88 10.30 1.10 0 0 0</pose>
+
+  <link name="body7">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.07</radius>
+          <length>1.2</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.72 0 1</ambient>
+        <diffuse>0 0.72 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed8">
+  <static>false</static>
+  <pose>13.78 9.76 1.40 0 0 0</pose>
+
+  <link name="body8">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.09</radius>
+          <length>1.7</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.84 0 1</ambient>
+        <diffuse>0 0.84 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed9">
+  <static>false</static>
+  <pose>-6.00 24.00 1.25 0 0 0</pose>
+
+  <link name="body9">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.08</radius>
+          <length>1.4</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.79 0 1</ambient>
+        <diffuse>0 0.79 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed10">
+  <static>false</static>
+  <pose>-5.72 24.06 1.35 0 0 0</pose>
+
+  <link name="body10">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.09</radius>
+          <length>1.6</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.87 0 1</ambient>
+        <diffuse>0 0.87 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed11">
+  <static>false</static>
+  <pose>-6.12 24.30 1.15 0 0 0</pose>
+
+  <link name="body11">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.07</radius>
+          <length>1.3</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.73 0 1</ambient>
+        <diffuse>0 0.73 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed12">
+  <static>false</static>
+  <pose>-6.22 23.76 1.45 0 0 0</pose>
+
+  <link name="body12">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.10</radius>
+          <length>1.8</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.85 0 1</ambient>
+        <diffuse>0 0.85 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed13">
+  <static>false</static>
+  <pose>25.00 -20.00 1.20 0 0 0</pose>
+
+  <link name="body13">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.08</radius>
+          <length>1.3</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.77 0 1</ambient>
+        <diffuse>0 0.77 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed14">
+  <static>false</static>
+  <pose>25.28 -19.94 1.40 0 0 0</pose>
+
+  <link name="body14">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.09</radius>
+          <length>1.7</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.83 0 1</ambient>
+        <diffuse>0 0.83 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed15">
+  <static>false</static>
+  <pose>24.88 -19.70 1.30 0 0 0</pose>
+
+  <link name="body15">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.08</radius>
+          <length>1.5</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.81 0 1</ambient>
+        <diffuse>0 0.81 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed16">
+  <static>false</static>
+  <pose>24.78 -20.24 1.10 0 0 0</pose>
+
+  <link name="body16">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.07</radius>
+          <length>1.2</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.71 0 1</ambient>
+        <diffuse>0 0.71 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed17">
+  <static>false</static>
+  <pose>-28.00 18.00 1.30 0 0 0</pose>
+
+  <link name="body17">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.08</radius>
+          <length>1.5</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.75 0 1</ambient>
+        <diffuse>0 0.75 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed18">
+  <static>false</static>
+  <pose>-27.72 18.06 1.25 0 0 0</pose>
+
+  <link name="body18">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.08</radius>
+          <length>1.4</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.78 0 1</ambient>
+        <diffuse>0 0.78 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed19">
+  <static>false</static>
+  <pose>-28.12 18.30 1.35 0 0 0</pose>
+
+  <link name="body19">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.09</radius>
+          <length>1.6</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.82 0 1</ambient>
+        <diffuse>0 0.82 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed20">
+  <static>false</static>
+  <pose>-28.22 17.76 1.45 0 0 0</pose>
+
+  <link name="body20">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+
+    <visual name="visual">
+      <geometry>
+        <cylinder>
+          <radius>0.10</radius>
+          <length>1.8</length>
+        </cylinder>
+      </geometry>
+      <material>
+        <ambient>0 0.88 0 1</ambient>
+        <diffuse>0 0.88 0 1</diffuse>
+      </material>
+    </visual>
+  </link>
+
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so"
+          name="FishAI"/>
+</model>
+
+<model name="seaweed21">
+  <static>false</static>
+  <pose>-16.00 -4.00 1.10 0 0 0</pose>
+  <link name="body21"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.07</radius><length>1.2</length></cylinder></geometry><material><ambient>0 0.72 0 1</ambient><diffuse>0 0.72 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed22">
+  <static>false</static>
+  <pose>-15.72 -3.94 1.20 0 0 0</pose>
+  <link name="body22"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.08</radius><length>1.4</length></cylinder></geometry><material><ambient>0 0.76 0 1</ambient><diffuse>0 0.76 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed23">
+  <static>false</static>
+  <pose>-16.12 -3.70 1.30 0 0 0</pose>
+  <link name="body23"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.09</radius><length>1.6</length></cylinder></geometry><material><ambient>0 0.82 0 1</ambient><diffuse>0 0.82 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed24">
+  <static>false</static>
+  <pose>-16.22 -4.24 1.40 0 0 0</pose>
+  <link name="body24"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.10</radius><length>1.8</length></cylinder></geometry><material><ambient>0 0.88 0 1</ambient><diffuse>0 0.88 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed25">
+  <static>false</static>
+  <pose>4.00 -18.00 1.10 0 0 0</pose>
+  <link name="body25"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.07</radius><length>1.2</length></cylinder></geometry><material><ambient>0 0.72 0 1</ambient><diffuse>0 0.72 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed26">
+  <static>false</static>
+  <pose>4.28 -17.94 1.20 0 0 0</pose>
+  <link name="body26"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.08</radius><length>1.4</length></cylinder></geometry><material><ambient>0 0.76 0 1</ambient><diffuse>0 0.76 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed27">
+  <static>false</static>
+  <pose>3.88 -17.70 1.30 0 0 0</pose>
+  <link name="body27"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.09</radius><length>1.6</length></cylinder></geometry><material><ambient>0 0.82 0 1</ambient><diffuse>0 0.82 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed28">
+  <static>false</static>
+  <pose>3.78 -18.24 1.40 0 0 0</pose>
+  <link name="body28"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.10</radius><length>1.8</length></cylinder></geometry><material><ambient>0 0.88 0 1</ambient><diffuse>0 0.88 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed29">
+  <static>false</static>
+  <pose>-2.00 7.00 1.10 0 0 0</pose>
+  <link name="body29"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.07</radius><length>1.2</length></cylinder></geometry><material><ambient>0 0.72 0 1</ambient><diffuse>0 0.72 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed30">
+  <static>false</static>
+  <pose>-1.72 7.06 1.20 0 0 0</pose>
+  <link name="body30"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.08</radius><length>1.4</length></cylinder></geometry><material><ambient>0 0.76 0 1</ambient><diffuse>0 0.76 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed31">
+  <static>false</static>
+  <pose>-2.12 7.30 1.30 0 0 0</pose>
+  <link name="body31"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.09</radius><length>1.6</length></cylinder></geometry><material><ambient>0 0.82 0 1</ambient><diffuse>0 0.82 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed32">
+  <static>false</static>
+  <pose>-2.22 6.76 1.40 0 0 0</pose>
+  <link name="body32"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.10</radius><length>1.8</length></cylinder></geometry><material><ambient>0 0.88 0 1</ambient><diffuse>0 0.88 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed33">
+  <static>false</static>
+  <pose>18.00 16.00 1.10 0 0 0</pose>
+  <link name="body33"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.07</radius><length>1.2</length></cylinder></geometry><material><ambient>0 0.72 0 1</ambient><diffuse>0 0.72 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed34">
+  <static>false</static>
+  <pose>18.28 16.06 1.20 0 0 0</pose>
+  <link name="body34"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.08</radius><length>1.4</length></cylinder></geometry><material><ambient>0 0.76 0 1</ambient><diffuse>0 0.76 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed35">
+  <static>false</static>
+  <pose>17.88 16.30 1.30 0 0 0</pose>
+  <link name="body35"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.09</radius><length>1.6</length></cylinder></geometry><material><ambient>0 0.82 0 1</ambient><diffuse>0 0.82 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed36">
+  <static>false</static>
+  <pose>17.78 15.76 1.40 0 0 0</pose>
+  <link name="body36"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.10</radius><length>1.8</length></cylinder></geometry><material><ambient>0 0.88 0 1</ambient><diffuse>0 0.88 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed37">
+  <static>false</static>
+  <pose>-26.00 5.00 1.10 0 0 0</pose>
+  <link name="body37"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.07</radius><length>1.2</length></cylinder></geometry><material><ambient>0 0.72 0 1</ambient><diffuse>0 0.72 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed38">
+  <static>false</static>
+  <pose>-25.72 5.06 1.20 0 0 0</pose>
+  <link name="body38"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.08</radius><length>1.4</length></cylinder></geometry><material><ambient>0 0.76 0 1</ambient><diffuse>0 0.76 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed39">
+  <static>false</static>
+  <pose>-26.12 5.30 1.30 0 0 0</pose>
+  <link name="body39"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.09</radius><length>1.6</length></cylinder></geometry><material><ambient>0 0.82 0 1</ambient><diffuse>0 0.82 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+<model name="seaweed40">
+  <static>false</static>
+  <pose>-26.22 4.76 1.40 0 0 0</pose>
+  <link name="body40"><gravity>false</gravity><inertial><mass>1</mass></inertial><visual name="visual"><geometry><cylinder><radius>0.10</radius><length>1.8</length></cylinder></geometry><material><ambient>0 0.88 0 1</ambient><diffuse>0 0.88 0 1</diffuse></material></visual></link>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 1 -->
+<model name="fish1">
+  <static>false</static>
+  <pose>-20.0 -10.0 1.35 0 0 0</pose>
+
+  <link name="body1">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.88 0.28 0.22 1</ambient><diffuse>0.88 0.28 0.22 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.96 0.40 0.30 1</ambient><diffuse>0.96 0.40 0.30 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.98 0.90 0.22 1</ambient><diffuse>0.98 0.90 0.22 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.98 0.90 0.22 1</ambient><diffuse>0.98 0.90 0.22 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.98 0.90 0.22 1</ambient><diffuse>0.98 0.90 0.22 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail1">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.59 0.84 1</ambient><diffuse>0.18 0.59 0.84 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.97 0.74 0.18 1</ambient><diffuse>0.97 0.74 0.18 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.97 0.74 0.18 1</ambient><diffuse>0.97 0.74 0.18 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint1" type="revolute"><parent>body1</parent><child>tail1</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 2 -->
+<model name="fish2">
+  <static>false</static>
+  <pose>-19.2 -9.4 1.25 0 0 0</pose>
+
+  <link name="body2">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.90 0.62 0.20 1</ambient><diffuse>0.90 0.62 0.20 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.98 0.72 0.28 1</ambient><diffuse>0.98 0.72 0.28 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.98 0.82 0.20 1</ambient><diffuse>0.98 0.82 0.20 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.98 0.82 0.20 1</ambient><diffuse>0.98 0.82 0.20 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.98 0.82 0.20 1</ambient><diffuse>0.98 0.82 0.20 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail2">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.57 0.82 1</ambient><diffuse>0.18 0.57 0.82 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.94 0.66 0.12 1</ambient><diffuse>0.94 0.66 0.12 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.94 0.66 0.12 1</ambient><diffuse>0.94 0.66 0.12 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint2" type="revolute"><parent>body2</parent><child>tail2</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 3 -->
+<model name="fish3">
+  <static>false</static>
+  <pose>-20.8 -9.1 1.30 0 0 0</pose>
+
+  <link name="body3">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.22 0.70 0.84 1</ambient><diffuse>0.22 0.70 0.84 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.30 0.78 0.92 1</ambient><diffuse>0.30 0.78 0.92 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.95 0.86 0.36 1</ambient><diffuse>0.95 0.86 0.36 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.95 0.86 0.36 1</ambient><diffuse>0.95 0.86 0.36 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.95 0.86 0.36 1</ambient><diffuse>0.95 0.86 0.36 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail3">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.51 0.76 1</ambient><diffuse>0.18 0.51 0.76 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.90 0.60 0.10 1</ambient><diffuse>0.90 0.60 0.10 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.90 0.60 0.10 1</ambient><diffuse>0.90 0.60 0.10 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint3" type="revolute"><parent>body3</parent><child>tail3</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 4 -->
+<model name="fish4">
+  <static>false</static>
+  <pose>-19.6 -10.8 1.20 0 0 0</pose>
+
+  <link name="body4">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.18 0.82 0.46 1</ambient><diffuse>0.18 0.82 0.46 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.28 0.90 0.54 1</ambient><diffuse>0.28 0.90 0.54 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.92 0.96 0.34 1</ambient><diffuse>0.92 0.96 0.34 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.92 0.96 0.34 1</ambient><diffuse>0.92 0.96 0.34 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.92 0.96 0.34 1</ambient><diffuse>0.92 0.96 0.34 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail4">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.59 0.84 1</ambient><diffuse>0.18 0.59 0.84 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.98 0.70 0.14 1</ambient><diffuse>0.98 0.70 0.14 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.98 0.70 0.14 1</ambient><diffuse>0.98 0.70 0.14 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint4" type="revolute"><parent>body4</parent><child>tail4</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 5 -->
+<model name="fish5">
+  <static>false</static>
+  <pose>17.0 12.0 1.40 0 0 0</pose>
+
+  <link name="body5">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.78 0.30 0.86 1</ambient><diffuse>0.78 0.30 0.86 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.88 0.44 0.96 1</ambient><diffuse>0.88 0.44 0.96 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.88 0.80 0.98 1</ambient><diffuse>0.88 0.80 0.98 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.88 0.80 0.98 1</ambient><diffuse>0.88 0.80 0.98 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.88 0.80 0.98 1</ambient><diffuse>0.88 0.80 0.98 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail5">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.47 0.72 1</ambient><diffuse>0.18 0.47 0.72 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.92 0.63 0.12 1</ambient><diffuse>0.92 0.63 0.12 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.92 0.63 0.12 1</ambient><diffuse>0.92 0.63 0.12 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint5" type="revolute"><parent>body5</parent><child>tail5</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 6 -->
+<model name="fish6">
+  <static>false</static>
+  <pose>17.8 12.5 1.30 0 0 0</pose>
+
+  <link name="body6">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.26 0.44 0.88 1</ambient><diffuse>0.26 0.44 0.88 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.34 0.56 0.96 1</ambient><diffuse>0.34 0.56 0.96 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.86 0.92 0.98 1</ambient><diffuse>0.86 0.92 0.98 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.86 0.92 0.98 1</ambient><diffuse>0.86 0.92 0.98 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.86 0.92 0.98 1</ambient><diffuse>0.86 0.92 0.98 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail6">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.55 0.80 1</ambient><diffuse>0.18 0.55 0.80 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.97 0.68 0.13 1</ambient><diffuse>0.97 0.68 0.13 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.97 0.68 0.13 1</ambient><diffuse>0.97 0.68 0.13 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint6" type="revolute"><parent>body6</parent><child>tail6</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 7 -->
+<model name="fish7">
+  <static>false</static>
+  <pose>16.2 11.7 1.25 0 0 0</pose>
+
+  <link name="body7">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.84 0.36 0.56 1</ambient><diffuse>0.84 0.36 0.56 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.92 0.50 0.68 1</ambient><diffuse>0.92 0.50 0.68 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.98 0.74 0.90 1</ambient><diffuse>0.98 0.74 0.90 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.98 0.74 0.90 1</ambient><diffuse>0.98 0.74 0.90 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.98 0.74 0.90 1</ambient><diffuse>0.98 0.74 0.90 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail7">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.52 0.77 1</ambient><diffuse>0.18 0.52 0.77 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.91 0.62 0.11 1</ambient><diffuse>0.91 0.62 0.11 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.91 0.62 0.11 1</ambient><diffuse>0.91 0.62 0.11 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint7" type="revolute"><parent>body7</parent><child>tail7</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 8 -->
+<model name="fish8">
+  <static>false</static>
+  <pose>18.1 11.4 1.35 0 0 0</pose>
+
+  <link name="body8">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.34 0.82 0.78 1</ambient><diffuse>0.34 0.82 0.78 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.42 0.90 0.86 1</ambient><diffuse>0.42 0.90 0.86 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.86 0.98 0.92 1</ambient><diffuse>0.86 0.98 0.92 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.86 0.98 0.92 1</ambient><diffuse>0.86 0.98 0.92 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.86 0.98 0.92 1</ambient><diffuse>0.86 0.98 0.92 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail8">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.49 0.74 1</ambient><diffuse>0.18 0.49 0.74 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.93 0.64 0.12 1</ambient><diffuse>0.93 0.64 0.12 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.93 0.64 0.12 1</ambient><diffuse>0.93 0.64 0.12 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint8" type="revolute"><parent>body8</parent><child>tail8</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 9 -->
+<model name="fish9">
+  <static>false</static>
+  <pose>-2.0 26.0 1.35 0 0 0</pose>
+
+  <link name="body9">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.72 0.50 0.22 1</ambient><diffuse>0.72 0.50 0.22 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.84 0.62 0.30 1</ambient><diffuse>0.84 0.62 0.30 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.96 0.78 0.30 1</ambient><diffuse>0.96 0.78 0.30 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.96 0.78 0.30 1</ambient><diffuse>0.96 0.78 0.30 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.96 0.78 0.30 1</ambient><diffuse>0.96 0.78 0.30 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail9">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.53 0.78 1</ambient><diffuse>0.18 0.53 0.78 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.95 0.67 0.13 1</ambient><diffuse>0.95 0.67 0.13 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.95 0.67 0.13 1</ambient><diffuse>0.95 0.67 0.13 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint9" type="revolute"><parent>body9</parent><child>tail9</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 10 -->
+<model name="fish10">
+  <static>false</static>
+  <pose>-1.2 26.6 1.25 0 0 0</pose>
+
+  <link name="body10">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.58 0.74 0.26 1</ambient><diffuse>0.58 0.74 0.26 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.68 0.84 0.34 1</ambient><diffuse>0.68 0.84 0.34 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.90 0.96 0.38 1</ambient><diffuse>0.90 0.96 0.38 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.90 0.96 0.38 1</ambient><diffuse>0.90 0.96 0.38 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.90 0.96 0.38 1</ambient><diffuse>0.90 0.96 0.38 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail10">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.58 0.83 1</ambient><diffuse>0.18 0.58 0.83 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.96 0.69 0.14 1</ambient><diffuse>0.96 0.69 0.14 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.96 0.69 0.14 1</ambient><diffuse>0.96 0.69 0.14 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint10" type="revolute"><parent>body10</parent><child>tail10</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 11 -->
+<model name="fish11">
+  <static>false</static>
+  <pose>-2.8 25.8 1.30 0 0 0</pose>
+
+  <link name="body11">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.86 0.42 0.30 1</ambient><diffuse>0.86 0.42 0.30 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.96 0.54 0.38 1</ambient><diffuse>0.96 0.54 0.38 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.98 0.86 0.44 1</ambient><diffuse>0.98 0.86 0.44 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.98 0.86 0.44 1</ambient><diffuse>0.98 0.86 0.44 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.98 0.86 0.44 1</ambient><diffuse>0.98 0.86 0.44 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail11">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.50 0.75 1</ambient><diffuse>0.18 0.50 0.75 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.92 0.62 0.11 1</ambient><diffuse>0.92 0.62 0.11 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.92 0.62 0.11 1</ambient><diffuse>0.92 0.62 0.11 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint11" type="revolute"><parent>body11</parent><child>tail11</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Fish 12 -->
+<model name="fish12">
+  <static>false</static>
+  <pose>-1.6 25.2 1.20 0 0 0</pose>
+
+  <link name="body12">
+    <gravity>false</gravity>
+    <inertial><mass>5</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.16</radius><length>0.58</length></capsule></geometry><material><ambient>0.30 0.62 0.90 1</ambient><diffuse>0.30 0.62 0.90 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.38 0 0 0 0 0</pose><geometry><sphere><radius>0.13</radius></sphere></geometry><material><ambient>0.40 0.74 0.98 1</ambient><diffuse>0.40 0.74 0.98 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.44 0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.44 -0.06 0.04 0 0 0</pose><geometry><sphere><radius>0.02</radius></sphere></geometry><material><ambient>0 0 0 1</ambient><diffuse>0 0 0 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.20 0.2 0 0</pose><geometry><box><size>0.20 0.03 0.15</size></box></geometry><material><ambient>0.90 0.94 0.98 1</ambient><diffuse>0.90 0.94 0.98 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.04 0.16 -0.02 0 0.3 0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.90 0.94 0.98 1</ambient><diffuse>0.90 0.94 0.98 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.04 -0.16 -0.02 0 -0.3 -0.4</pose><geometry><box><size>0.14 0.02 0.08</size></box></geometry><material><ambient>0.90 0.94 0.98 1</ambient><diffuse>0.90 0.94 0.98 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail12">
+    <gravity>false</gravity>
+    <inertial><mass>1</mass></inertial>
+    <pose>-0.43 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.10 0.08 0.12</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.12 0.08 0.10</size></box></geometry><material><ambient>0.18 0.56 0.81 1</ambient><diffuse>0.18 0.56 0.81 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.12 0.07 0.05 0 0 0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.97 0.71 0.15 1</ambient><diffuse>0.97 0.71 0.15 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.12 -0.07 -0.05 0 0 -0.55</pose><geometry><box><size>0.22 0.02 0.16</size></box></geometry><material><ambient>0.97 0.71 0.15 1</ambient><diffuse>0.97 0.71 0.15 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint12" type="revolute"><parent>body12</parent><child>tail12</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>5</effort><velocity>5</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+    <!-- Shark 1 -->
+<model name="shark1">
+  <static>false</static>
+  <pose>9.0 -18.0 1.95 0 0 0.7</pose>
+
+  <link name="body13">
+    <gravity>false</gravity>
+    <inertial><mass>12</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.26</radius><length>1.10</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.26</radius><length>1.10</length></capsule></geometry><material><ambient>0.37 0.41 0.46 1</ambient><diffuse>0.37 0.41 0.46 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.64 0 0 0 0 0</pose><geometry><sphere><radius>0.22</radius></sphere></geometry><material><ambient>0.44 0.48 0.52 1</ambient><diffuse>0.44 0.48 0.52 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.75 0.10 0.05 0 0 0</pose><geometry><sphere><radius>0.026</radius></sphere></geometry><material><ambient>0.03 0.03 0.03 1</ambient><diffuse>0.03 0.03 0.03 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.75 -0.10 0.05 0 0 0</pose><geometry><sphere><radius>0.026</radius></sphere></geometry><material><ambient>0.03 0.03 0.03 1</ambient><diffuse>0.03 0.03 0.03 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.02 0 0.32 0 0 0</pose><geometry><box><size>0.20 0.04 0.34</size></box></geometry><material><ambient>0.30 0.33 0.37 1</ambient><diffuse>0.30 0.33 0.37 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.12 0.26 -0.05 0 0.35 0.5</pose><geometry><box><size>0.24 0.03 0.14</size></box></geometry><material><ambient>0.31 0.34 0.39 1</ambient><diffuse>0.31 0.34 0.39 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.12 -0.26 -0.05 0 -0.35 -0.5</pose><geometry><box><size>0.24 0.03 0.14</size></box></geometry><material><ambient>0.31 0.34 0.39 1</ambient><diffuse>0.31 0.34 0.39 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail13">
+    <gravity>false</gravity>
+    <inertial><mass>2</mass></inertial>
+    <pose>-0.73 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.20 0.16 0.20</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.24 0.16 0.16</size></box></geometry><material><ambient>0.31 0.34 0.38 1</ambient><diffuse>0.31 0.34 0.38 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.18 0.12 0.10 0 0 0.58</pose><geometry><box><size>0.35 0.03 0.25</size></box></geometry><material><ambient>0.36 0.40 0.45 1</ambient><diffuse>0.36 0.40 0.45 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.18 -0.12 -0.10 0 0 -0.58</pose><geometry><box><size>0.35 0.03 0.25</size></box></geometry><material><ambient>0.36 0.40 0.45 1</ambient><diffuse>0.36 0.40 0.45 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint13" type="revolute"><parent>body13</parent><child>tail13</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>8</effort><velocity>4</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Shark 2 -->
+<model name="shark2">
+  <static>false</static>
+  <pose>-16.5 8.5 2.10 0 0 -0.9</pose>
+
+  <link name="body14">
+    <gravity>false</gravity>
+    <inertial><mass>10</mass></inertial>
+    <collision name="body_collision"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.24</radius><length>0.98</length></capsule></geometry></collision>
+    <visual name="body_visual"><pose>0 0 0 0 1.5708 0</pose><geometry><capsule><radius>0.24</radius><length>0.98</length></capsule></geometry><material><ambient>0.33 0.39 0.45 1</ambient><diffuse>0.33 0.39 0.45 1</diffuse></material></visual>
+    <visual name="head_visual"><pose>0.58 0 0 0 0 0</pose><geometry><sphere><radius>0.20</radius></sphere></geometry><material><ambient>0.41 0.47 0.53 1</ambient><diffuse>0.41 0.47 0.53 1</diffuse></material></visual>
+    <visual name="eye_left"><pose>0.69 0.09 0.04 0 0 0</pose><geometry><sphere><radius>0.024</radius></sphere></geometry><material><ambient>0.02 0.02 0.02 1</ambient><diffuse>0.02 0.02 0.02 1</diffuse></material></visual>
+    <visual name="eye_right"><pose>0.69 -0.09 0.04 0 0 0</pose><geometry><sphere><radius>0.024</radius></sphere></geometry><material><ambient>0.02 0.02 0.02 1</ambient><diffuse>0.02 0.02 0.02 1</diffuse></material></visual>
+    <visual name="dorsal_fin"><pose>0.00 0 0.29 0 0 0</pose><geometry><box><size>0.18 0.04 0.30</size></box></geometry><material><ambient>0.29 0.33 0.38 1</ambient><diffuse>0.29 0.33 0.38 1</diffuse></material></visual>
+    <visual name="left_fin"><pose>0.10 0.24 -0.05 0 0.3 0.45</pose><geometry><box><size>0.22 0.03 0.12</size></box></geometry><material><ambient>0.30 0.34 0.39 1</ambient><diffuse>0.30 0.34 0.39 1</diffuse></material></visual>
+    <visual name="right_fin"><pose>0.10 -0.24 -0.05 0 -0.3 -0.45</pose><geometry><box><size>0.22 0.03 0.12</size></box></geometry><material><ambient>0.30 0.34 0.39 1</ambient><diffuse>0.30 0.34 0.39 1</diffuse></material></visual>
+  </link>
+
+  <link name="tail14">
+    <gravity>false</gravity>
+    <inertial><mass>2</mass></inertial>
+    <pose>-0.66 0 0 0 0 0</pose>
+    <collision name="tail_collision"><geometry><box><size>0.18 0.14 0.18</size></box></geometry></collision>
+    <visual name="tail_stem"><geometry><box><size>0.22 0.14 0.15</size></box></geometry><material><ambient>0.30 0.34 0.39 1</ambient><diffuse>0.30 0.34 0.39 1</diffuse></material></visual>
+    <visual name="tail_top"><pose>-0.16 0.11 0.09 0 0 0.58</pose><geometry><box><size>0.32 0.03 0.22</size></box></geometry><material><ambient>0.35 0.39 0.44 1</ambient><diffuse>0.35 0.39 0.44 1</diffuse></material></visual>
+    <visual name="tail_bottom"><pose>-0.16 -0.11 -0.09 0 0 -0.58</pose><geometry><box><size>0.32 0.03 0.22</size></box></geometry><material><ambient>0.35 0.39 0.44 1</ambient><diffuse>0.35 0.39 0.44 1</diffuse></material></visual>
+  </link>
+
+  <joint name="tail_joint14" type="revolute"><parent>body14</parent><child>tail14</child><axis><xyz>0 0 1</xyz><limit><lower>-0.8</lower><upper>0.8</upper><effort>8</effort><velocity>4</velocity></limit></axis></joint>
+  <plugin filename="/home/kousik/fish_ai_plugin/build/libFishAI.so" name="FishAI"/>
+</model>
+
+    <!-- Continuous non-periodic curved submarine cable on seabed -->
+    <model name="submarine_cable">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <!-- corrosion=true -->
+      <link name="cable_link">
+        <gravity>true</gravity>
+        <inertial>
+          <mass>900</mass>
+          <inertia>
+            <ixx>200000</ixx>
+            <iyy>200000</iyy>
+            <izz>6500</izz>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyz>0</iyz>
+          </inertia>
+        </inertial>
+        <velocity_decay>
+          <linear>6.0</linear>
+          <angular>9.0</angular>
+        </velocity_decay>
+        <collision name="segment_collision_1">
+          <pose>-38.4991 1.0268 3.0000 0 1.948426 0.429690</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099789</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_1">
+          <pose>-38.4818 1.0356 2.9923 0 1.948427 0.431259</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.141484</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_2">
+          <pose>-37.4992 1.4850 2.5637 0 1.948433 0.423177</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099978</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_2">
+          <pose>-37.4997 1.4863 2.5637 0 1.948345 0.429169</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.183397</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_3">
+          <pose>-36.4935 1.9301 2.1275 0 1.948540 0.390872</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099878</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_3">
+          <pose>-36.4932 1.9300 2.1276 0 1.948174 0.401244</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.183385</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_4">
+          <pose>-35.4668 2.3225 1.6915 0 1.948877 0.313818</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099587</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_4">
+          <pose>-35.4660 2.3205 1.6918 0 1.947961 0.325292</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.182517</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_5">
+          <pose>-34.4081 2.6069 1.2566 0 1.949407 0.186903</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.098172</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_5">
+          <pose>-34.4110 2.6005 1.2444 0 1.970122 0.192888</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.181233</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_6">
+          <pose>-33.3199 2.7285 0.8223 0 1.854131 0.039114</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099212</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_6">
+          <pose>-33.3287 2.7252 0.8422 0 1.875605 0.037169</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.150257</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_7">
+          <pose>-32.2233 2.6924 0.6200 0 1.662847 -0.090705</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099374</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_7">
+          <pose>-32.2289 2.6931 0.6322 0 1.638242 -0.094895</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.110680</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_8">
+          <pose>-31.1375 2.5300 0.6200 0 1.570796 -0.198281</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099527</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_8">
+          <pose>-31.1379 2.5311 0.6074 0 1.547850 -0.200144</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.101097</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_9">
+          <pose>-30.0727 2.2603 0.6200 0 1.570796 -0.293015</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099662</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_9">
+          <pose>-30.0727 2.2603 0.6200 0 1.570796 -0.293015</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099662</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_10">
+          <pose>-29.0364 1.8961 0.6200 0 1.570796 -0.380450</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099285</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_10">
+          <pose>-29.0364 1.8961 0.6200 0 1.570796 -0.380450</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099285</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_11">
+          <pose>-28.2214 1.5199 0.6200 0 1.570796 -0.515308</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099449</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_11">
+          <pose>-28.2214 1.5199 0.6200 0 1.570796 -0.515308</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099449</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_12">
+          <pose>-27.1298 0.8163 0.6200 0 1.570796 -0.572520</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.600000</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_12">
+          <pose>-27.1298 0.8163 0.6200 0 1.570796 -0.572520</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.600000</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_13">
+          <pose>-26.0381 0.1127 0.6200 0 1.570796 -0.584306</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099998</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_13">
+          <pose>-26.0381 0.1127 0.6200 0 1.570796 -0.584306</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099998</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_14">
+          <pose>-25.2961 -0.3964 0.6200 0 1.570796 -0.579301</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099925</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_14">
+          <pose>-25.2961 -0.3964 0.6200 0 1.570796 -0.579301</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099925</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_15">
+          <pose>-24.3656 -0.9814 0.6200 0 1.570796 -0.540045</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099650</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_15">
+          <pose>-24.3656 -0.9814 0.6200 0 1.570796 -0.540045</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099650</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_16">
+          <pose>-23.4105 -1.5268 0.6200 0 1.570796 -0.514556</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099967</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_16">
+          <pose>-23.4105 -1.5268 0.6200 0 1.570796 -0.514556</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099967</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_17">
+          <pose>-22.4507 -2.0640 0.6200 0 1.570796 -0.499401</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099977</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_17">
+          <pose>-22.4507 -2.0640 0.6200 0 1.570796 -0.499401</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099977</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_18">
+          <pose>-21.4797 -2.5801 0.6200 0 1.570796 -0.451082</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.600000</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_18">
+          <pose>-21.4797 -2.5801 0.6200 0 1.570796 -0.451082</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.600000</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_19">
+          <pose>-20.4744 -3.0213 0.6200 0 1.570796 -0.341054</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099013</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_19">
+          <pose>-20.4744 -3.0213 0.6200 0 1.570796 -0.341054</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099013</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_20">
+          <pose>-19.4201 -3.3111 0.6200 0 1.570796 -0.161096</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.097306</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_20">
+          <pose>-19.4201 -3.3111 0.6200 0 1.570796 -0.161096</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.097306</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_21">
+          <pose>-18.3323 -3.3694 0.6200 0 1.570796 0.052815</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.097564</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_21">
+          <pose>-18.3323 -3.3694 0.6200 0 1.570796 0.052815</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.097564</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_22">
+          <pose>-17.2523 -3.1965 0.6200 0 1.570796 0.229747</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099096</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_22">
+          <pose>-17.2523 -3.1965 0.6200 0 1.570796 0.229747</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099096</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_23">
+          <pose>-16.2034 -2.8715 0.6200 0 1.570796 0.335242</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099794</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_23">
+          <pose>-16.2034 -2.8715 0.6200 0 1.570796 0.335242</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099794</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_24">
+          <pose>-15.1782 -2.4739 0.6200 0 1.570796 0.376336</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099994</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_24">
+          <pose>-15.1782 -2.4739 0.6200 0 1.570796 0.376336</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099994</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_25">
+          <pose>-14.1577 -2.0631 0.6200 0 1.570796 0.388416</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099974</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_25">
+          <pose>-14.1577 -2.0631 0.6200 0 1.570796 0.388416</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099974</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_26">
+          <pose>-13.1423 -1.6408 0.6200 0 1.570796 0.412356</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099883</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_26">
+          <pose>-13.1423 -1.6408 0.6200 0 1.570796 0.412356</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099883</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_27">
+          <pose>-12.1430 -1.1818 0.6200 0 1.570796 0.445225</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099958</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_27">
+          <pose>-12.1430 -1.1818 0.6200 0 1.570796 0.445225</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099958</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_28">
+          <pose>-11.1573 -0.6936 0.6200 0 1.570796 0.465660</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099994</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_28">
+          <pose>-11.1573 -0.6936 0.6200 0 1.570796 0.465660</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099994</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_29">
+          <pose>-10.1773 -0.1940 0.6200 0 1.570796 0.471198</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099998</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_29">
+          <pose>-10.1773 -0.1940 0.6200 0 1.570796 0.471198</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099998</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_30">
+          <pose>-9.1983 0.3074 0.6200 0 1.570796 0.473284</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099970</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_30">
+          <pose>-9.4787 0.1638 0.6200 0 1.570796 0.473284</pose>
+          <geometry><cylinder><radius>0.12</radius><length>0.469985</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <visual name="segment_visual_30_right">
+          <pose>-8.9179 0.4510 0.6200 0 1.570796 0.473284</pose>
+          <geometry><cylinder><radius>0.12</radius><length>0.469985</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_31">
+          <pose>-8.2193 0.8087 0.6200 0 1.570796 0.494943</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099944</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_31">
+          <pose>-8.2193 0.8087 0.6200 0 1.570796 0.494943</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099944</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_32">
+          <pose>-7.2545 1.3368 0.6200 0 1.570796 0.500961</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099999</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_32">
+          <pose>-7.2545 1.3368 0.6200 0 1.570796 0.500961</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099999</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_33">
+          <pose>-6.2898 1.8652 0.6200 0 1.570796 0.484249</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099945</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_33">
+          <pose>-6.2898 1.8652 0.6200 0 1.570796 0.484249</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099945</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_34">
+          <pose>-5.3082 2.3606 0.6200 0 1.570796 0.431085</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099754</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_34">
+          <pose>-5.5943 2.2290 0.6200 0 1.570796 0.431085</pose>
+          <geometry><cylinder><radius>0.12</radius><length>0.469877</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <visual name="segment_visual_34_right">
+          <pose>-5.0221 2.4922 0.6200 0 1.570796 0.431085</pose>
+          <geometry><cylinder><radius>0.12</radius><length>0.469877</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_35">
+          <pose>-4.2943 2.7830 0.6200 0 1.570796 0.354378</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099447</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_35">
+          <pose>-4.2943 2.7830 0.6200 0 1.570796 0.354378</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099447</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_36">
+          <pose>-3.2490 3.1225 0.6200 0 1.570796 0.281469</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099889</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_36">
+          <pose>-3.2490 3.1225 0.6200 0 1.570796 0.281469</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099889</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_37">
+          <pose>-2.1836 3.3933 0.6200 0 1.570796 0.209917</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099713</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_37">
+          <pose>-2.1836 3.3933 0.6200 0 1.570796 0.209917</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099713</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_38">
+          <pose>-1.0612 3.5797 0.6200 0 1.570796 0.116490</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099420</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_38">
+          <pose>-1.0612 3.5797 0.6200 0 1.570796 0.116490</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099420</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_40">
+          <pose>1.0454 3.5605 0.6200 0 1.570796 -0.163250</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.098341</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_40">
+          <pose>1.0454 3.5605 0.6200 0 1.570796 -0.163250</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.098341</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_41">
+          <pose>2.1472 3.2934 0.6200 0 1.570796 -0.313527</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099202</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_41">
+          <pose>2.1472 3.2934 0.6200 0 1.570796 -0.313527</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099202</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_42">
+          <pose>3.1667 2.8853 0.6200 0 1.570796 -0.415557</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099798</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_42">
+          <pose>3.1667 2.8853 0.6200 0 1.570796 -0.415557</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099798</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_43">
+          <pose>4.1567 2.4067 0.6200 0 1.570796 -0.457975</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099987</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_43">
+          <pose>4.1567 2.4067 0.6200 0 1.570796 -0.457975</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099987</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_44">
+          <pose>5.1396 1.9128 0.6200 0 1.570796 -0.454356</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099943</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_44">
+          <pose>5.1396 1.9128 0.6200 0 1.570796 -0.454356</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099943</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_45">
+          <pose>6.1332 1.4413 0.6200 0 1.570796 -0.437520</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099979</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_45">
+          <pose>6.1332 1.4413 0.6200 0 1.570796 -0.437520</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099979</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_46">
+          <pose>7.1321 0.9808 0.6200 0 1.570796 -0.437135</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099991</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_46">
+          <pose>7.1321 0.9808 0.6200 0 1.570796 -0.437135</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099991</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_47">
+          <pose>8.1262 0.5100 0.6200 0 1.570796 -0.442383</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.100000</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_47">
+          <pose>8.1262 0.5100 0.6200 0 1.570796 -0.442383</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.100000</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_48">
+          <pose>9.1203 0.0390 0.6200 0 1.570796 -0.435672</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099991</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_48">
+          <pose>9.1203 0.0390 0.6200 0 1.570796 -0.435672</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099991</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_49">
+          <pose>10.1206 -0.4184 0.6200 0 1.570796 -0.420412</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099962</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_49">
+          <pose>10.1206 -0.4184 0.6200 0 1.570796 -0.420412</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099962</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_50">
+          <pose>11.1285 -0.8588 0.6200 0 1.570796 -0.416747</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099937</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_50">
+          <pose>11.1285 -0.8588 0.6200 0 1.570796 -0.416747</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099937</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_51">
+          <pose>12.1320 -1.3088 0.6200 0 1.570796 -0.426007</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099991</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_51">
+          <pose>12.1320 -1.3088 0.6200 0 1.570796 -0.426007</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099991</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_52">
+          <pose>13.1316 -1.7678 0.6200 0 1.570796 -0.408081</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099908</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_52">
+          <pose>13.1316 -1.7678 0.6200 0 1.570796 -0.408081</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099908</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_53">
+          <pose>14.1498 -2.1812 0.6200 0 1.570796 -0.329241</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099408</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_53">
+          <pose>14.1498 -2.1812 0.6200 0 1.570796 -0.329241</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099408</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_54">
+          <pose>15.2049 -2.4762 0.6200 0 1.570796 -0.177930</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.098124</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_54">
+          <pose>15.2049 -2.4762 0.6200 0 1.570796 -0.177930</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.098124</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_55">
+          <pose>16.2918 -2.5664 0.6200 0 1.570796 0.023074</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.097435</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_55">
+          <pose>16.2918 -2.5664 0.6200 0 1.570796 0.023074</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.097435</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_56">
+          <pose>17.3758 -2.4261 0.6200 0 1.570796 0.205980</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.098944</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_56">
+          <pose>17.3758 -2.4261 0.6200 0 1.570796 0.205980</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.098944</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_57">
+          <pose>18.4297 -2.1197 0.6200 0 1.570796 0.323926</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099701</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_57">
+          <pose>18.4297 -2.1197 0.6200 0 1.570796 0.323926</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099701</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_58">
+          <pose>19.4568 -1.7274 0.6200 0 1.570796 0.375998</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099976</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_58">
+          <pose>19.4568 -1.7274 0.6200 0 1.570796 0.375998</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099976</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_59">
+          <pose>20.4754 -1.3121 0.6200 0 1.570796 0.390375</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099952</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_59">
+          <pose>20.4754 -1.3121 0.6200 0 1.570796 0.390375</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099952</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_60">
+          <pose>21.4911 -0.8903 0.6200 0 1.570796 0.411072</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099760</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_60">
+          <pose>21.4911 -0.8903 0.6200 0 1.570796 0.411072</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099760</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_61">
+          <pose>22.4912 -0.4334 0.6200 0 1.570796 0.444877</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099949</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_61">
+          <pose>22.4912 -0.4334 0.6200 0 1.570796 0.444877</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099949</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_62">
+          <pose>23.4762 0.0561 0.6200 0 1.570796 0.459236</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099998</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_62">
+          <pose>23.4762 0.0561 0.6200 0 1.570796 0.459236</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099998</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_63">
+          <pose>24.4631 0.5417 0.6200 0 1.570796 0.436531</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099926</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_63">
+          <pose>24.4631 0.5417 0.6200 0 1.570796 0.436531</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099926</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_64">
+          <pose>25.4687 0.9857 0.6200 0 1.570796 0.389090</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099681</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_64">
+          <pose>25.4687 0.9857 0.6200 0 1.570796 0.389090</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099681</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_65">
+          <pose>26.4968 1.3755 0.6200 0 1.570796 0.346700</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099999</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_65">
+          <pose>26.4968 1.3755 0.6200 0 1.570796 0.346700</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099999</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_66">
+          <pose>27.5371 1.7330 0.6200 0 1.570796 0.312231</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099937</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_66">
+          <pose>27.5371 1.7330 0.6200 0 1.570796 0.312231</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099937</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_67">
+          <pose>28.5895 2.0510 0.6200 0 1.570796 0.253473</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099721</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_67">
+          <pose>28.5895 2.0510 0.6200 0 1.570796 0.253473</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099721</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_68">
+          <pose>29.6626 2.2836 0.6200 0 1.570796 0.149030</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099245</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_68">
+          <pose>29.6626 2.2836 0.6200 0 1.570796 0.149030</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099245</length></cylinder></geometry>
+          <material>
+            <ambient>0.32 0.14 0.08 1</ambient>
+            <diffuse>0.45 0.22 0.12 1</diffuse>
+            <specular>0.08 0.04 0.02 1</specular>
+            <pbr>
+              <metal>
+                <roughness>0.95</roughness>
+                <metalness>0.05</metalness>
+              </metal>
+            </pbr>
+          </material>
+        </visual>
+        <collision name="segment_collision_69">
+          <pose>30.7541 2.3760 0.6200 0 1.570796 -0.001054</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.098308</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_69">
+          <pose>30.7541 2.3760 0.6200 0 1.570796 -0.001054</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.098308</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_70">
+          <pose>31.8438 2.2813 0.6200 0 1.570796 -0.162891</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.098783</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_70">
+          <pose>31.8443 2.2766 0.5995 0 1.607959 -0.171116</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.102040</length></cylinder></geometry>
+          <material><ambient>0.45 0.22 0.08 1</ambient><diffuse>0.45 0.22 0.08 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_71">
+          <pose>32.9099 2.0217 0.6200 0 1.421299 -0.283019</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099657</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_71">
+          <pose>32.9170 2.0200 0.6574 0 1.430543 -0.298151</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.120160</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_72">
+          <pose>33.9509 1.6685 0.9505 0 1.235243 -0.345208</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099937</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_72">
+          <pose>33.9585 1.6658 0.9467 0 1.201840 -0.357980</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.170706</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_73">
+          <pose>34.9791 1.2776 1.3869 0 1.193159 -0.356749</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099987</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_73">
+          <pose>34.9822 1.2802 1.3814 0 1.183388 -0.362395</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.183606</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_74">
+          <pose>36.0121 0.9003 1.8231 0 1.193161 -0.344266</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099924</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_74">
+          <pose>35.9582 0.9220 1.8001 0 1.193197 -0.339913</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.058189</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_75">
+          <pose>37.0497 0.5352 2.2594 0 1.193153 -0.347198</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.600000</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_75">
+          <pose>37.0487 0.5325 2.2594 0 1.193158 -0.345294</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.433300</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_76">
+          <pose>38.0806 0.1518 2.6957 0 1.193163 -0.360056</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.099992</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_76">
+          <pose>38.1297 0.1338 2.7164 0 1.193178 -0.364379</pose>
+          <geometry><cylinder><radius>0.12</radius><length>1.045699</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+        <collision name="segment_collision_77">
+          <pose>38.7970 -0.1226 3.0000 0 1.193167 -0.365789</pose>
+          <geometry><cylinder><radius>0.12</radius><length>0.434428</length></cylinder></geometry>
+        </collision>
+        <visual name="segment_visual_77">
+          <pose>38.7847 -0.1171 2.9946 0 1.193179 -0.369190</pose>
+          <geometry><cylinder><radius>0.12</radius><length>0.463480</length></cylinder></geometry>
+          <material><ambient>0.01 0.01 0.01 1</ambient><diffuse>0.01 0.01 0.01 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Cable endpoint landing station: starting country -->
+    <model name="station_country_A">
+      <static>true</static>
+      <pose>-40.9 1.0 2.9 0 0 0</pose>
+      <link name="station_link">
+        <collision name="station_base_collision">
+          <geometry>
+            <box>
+              <size>2.8 2.8 5.8</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="station_base_visual">
+          <geometry>
+            <box>
+              <size>2.8 2.8 5.8</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.10 0.42 0.62 1</ambient>
+            <diffuse>0.10 0.42 0.62 1</diffuse>
+            <specular>0.12 0.12 0.12 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Cable endpoint landing station: destination country -->
+    <model name="station_country_B">
+      <static>true</static>
+      <pose>40.9 -0.1 2.9 0 0 0</pose>
+      <link name="station_link">
+        <collision name="station_base_collision">
+          <geometry>
+            <box>
+              <size>2.8 2.8 5.8</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="station_base_visual">
+          <geometry>
+            <box>
+              <size>2.8 2.8 5.8</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.64 0.36 0.08 1</ambient>
+            <diffuse>0.64 0.36 0.08 1</diffuse>
+            <specular>0.12 0.12 0.12 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="stop_marker">
+      <static>true</static>
+      <pose>32.9099 2.0217 1.0000 0 0 0</pose>
+      <link name="marker_link">
+        <collision name="marker_collision">
+          <geometry>
+            <sphere>
+              <radius>0.25</radius>
+            </sphere>
+          </geometry>
+        </collision>
+        <visual name="marker_visual">
+          <geometry>
+            <sphere>
+              <radius>0.25</radius>
+            </sphere>
+          </geometry>
+          <material>
+            <ambient>1.0 0.85 0.10 1</ambient>
+            <diffuse>1.0 0.85 0.10 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+            <emissive>0.35 0.30 0.05 1</emissive>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Underwater Cable Inspection Robot -->
+    <model name="cable_repair_robot">
+      <static>false</static>
+      <!-- Start just outside Station A on the first outbound cable segment so
+           the chassis is clear of the cable and already facing Station B. -->
+      <pose>-38.40 1.07 3.43 0 0 0.43</pose>
+
+      <link name="base_link">
+        <!-- Realistic-ish underwater robot inertia -->
+        <inertial>
+          <mass>55.0</mass>
+          <inertia>
+            <ixx>2.2</ixx>
+            <iyy>2.6</iyy>
+            <izz>3.1</izz>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyz>0</iyz>
+          </inertia>
+        </inertial>
+
+        <!-- Main body collision -->
+        <collision name="body_collision">
+          <geometry>
+            <box>
+              <size>1.0 0.62 0.30</size>
+            </box>
+          </geometry>
+          <surface>
+            <contact>
+              <collide_bitmask>65535</collide_bitmask>
+            </contact>
+          </surface>
+        </collision>
+
+        <!-- Main body visual -->
+        <visual name="body_visual">
+          <geometry>
+            <box>
+              <size>1.0 0.62 0.30</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.08 0.24 0.85 1</ambient>
+            <diffuse>0.08 0.24 0.85 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+          </material>
+        </visual>
+
+        <!-- Front camera sensor -->
+        <sensor name="front_camera" type="camera">
+          <!-- Point slightly downward so the cable stays in frame while the
+               robot drives forward along the seabed cable. -->
+          <pose>0.62 0 0.24 0 0.52 0</pose>
+          <always_on>true</always_on>
+          <update_rate>30</update_rate>
+          <topic>/cable_repair_robot/camera</topic>
+          <camera>
+            <horizontal_fov>1.85</horizontal_fov>
+            <image>
+              <width>640</width>
+              <height>480</height>
+              <format>R8G8B8</format>
+            </image>
+            <clip>
+              <near>0.05</near>
+              <far>80</far>
+            </clip>
+          </camera>
+        </sensor>
+
+        <!-- IMU sensor (valid Gazebo sensor type) -->
+        <sensor name="imu_sensor" type="imu">
+          <always_on>true</always_on>
+          <update_rate>100</update_rate>
+          <topic>/cable_repair_robot/imu</topic>
+          <imu/>
+        </sensor>
+
+        <!-- Thruster visuals -->
+        <visual name="thruster_left_visual">
+          <pose>-0.46 0.26 -0.02 0 1.5708 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.07</radius>
+              <length>0.16</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.05 0.05 0.05 1</ambient>
+            <diffuse>0.05 0.05 0.05 1</diffuse>
+          </material>
+        </visual>
+
+        <visual name="thruster_right_visual">
+          <pose>-0.46 -0.26 -0.02 0 1.5708 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.07</radius>
+              <length>0.16</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.05 0.05 0.05 1</ambient>
+            <diffuse>0.05 0.05 0.05 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Optional small inspection arm -->
+      <link name="repair_arm_link">
+        <pose>0.47 0.08 -0.10 0 0 0</pose>
+        <inertial>
+          <mass>1.5</mass>
+          <inertia>
+            <ixx>0.007</ixx>
+            <iyy>0.007</iyy>
+            <izz>0.002</izz>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyz>0</iyz>
+          </inertia>
+        </inertial>
+        <collision name="arm_collision">
+          <geometry>
+            <box>
+              <size>0.26 0.035 0.035</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name="arm_visual">
+          <geometry>
+            <box>
+              <size>0.26 0.035 0.035</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.75 0.75 0.75 1</ambient>
+            <diffuse>0.75 0.75 0.75 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <joint name="repair_arm_joint" type="revolute">
+        <parent>base_link</parent>
+        <child>repair_arm_link</child>
+        <pose>0.34 0.08 -0.10 0 0 0</pose>
+        <axis>
+          <xyz>0 0 1</xyz>
+          <limit>
+            <lower>-1.2</lower>
+            <upper>1.2</upper>
+            <effort>20</effort>
+            <velocity>1.0</velocity>
+          </limit>
+        </axis>
+      </joint>
+
+      <!-- ROS2/Gazebo command actuator:
+           consumes /model/cable_repair_robot/cmd_vel and applies direct
+           linear/angular velocity commands to the robot body. -->
+      <plugin filename="/home/kousik/cable_robot_controller/build/libcable_robot_controller_twist.so"
+              name="cable_robot_controller::TwistCmdController">
+        <link_name>base_link</link_name>
+        <cmd_topic>/model/cable_repair_robot/cmd_vel</cmd_topic>
+        <inspection_complete_topic>/model/cable_repair_robot/inspection_complete</inspection_complete_topic>
+        <stop_marker_name>stop_marker</stop_marker_name>
+        <stop_marker_reach_distance>1.0</stop_marker_reach_distance>
+        <cmd_timeout_sec>0.4</cmd_timeout_sec>
+        <robot_cable_clearance>0.20</robot_cable_clearance>
+        <robot_half_height>0.15</robot_half_height>
+        <vertical_kp>1.4</vertical_kp>
+        <vertical_deadband>0.015</vertical_deadband>
+        <max_vertical_speed>0.25</max_vertical_speed>
+        <vertical_smoothing_tau>0.45</vertical_smoothing_tau>
+        <cable_map_refresh_sec>0.5</cable_map_refresh_sec>
+      </plugin>
+
+      <!-- Publish robot world coordinates / poses -->
+      <plugin filename="gz-sim-pose-publisher-system" name="gz::sim::systems::PosePublisher">
+        <publish_link_pose>true</publish_link_pose>
+        <publish_sensor_pose>true</publish_sensor_pose>
+        <publish_collision_pose>false</publish_collision_pose>
+        <publish_visual_pose>false</publish_visual_pose>
+        <publish_nested_model_pose>true</publish_nested_model_pose>
+        <use_pose_vector_msg>true</use_pose_vector_msg>
+        <static_publisher>false</static_publisher>
+        <static_update_frequency>1</static_update_frequency>
+      </plugin>
+    </model>
+
+  </world>
+</sdf>

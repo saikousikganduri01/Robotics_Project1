@@ -1,0 +1,36 @@
+<?xml version="1.0" ?>
+<sdf version="1.9">
+  <world name="test_world">
+
+    <gravity>0 0 -9.8</gravity>
+
+    <plugin
+      filename="libgz-sim-buoyancy-system.so"
+      name="gz::sim::systems::Buoyancy">
+      <uniform_fluid_density>1000</uniform_fluid_density>
+    </plugin>
+
+    <model name="box">
+      <pose>0 0 2 0 0 0</pose>
+      <link name="link">
+        <inertial>
+          <mass>10</mass>
+          <inertia>
+            <ixx>1</ixx><iyy>1</iyy><izz>1</izz>
+          </inertia>
+        </inertial>
+        <collision name="col">
+          <geometry>
+            <box><size>1 1 1</size></box>
+          </geometry>
+        </collision>
+        <visual name="vis">
+          <geometry>
+            <box><size>1 1 1</size></box>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

@@ -1,0 +1,7 @@
+/home/kousik/gz_current_plugin/build/CMakeFiles/CurrentSystem.dir
+/home/kousik/gz_current_plugin/build/CMakeFiles/edit_cache.dir
+/home/kousik/gz_current_plugin/build/CMakeFiles/rebuild_cache.dir
+/home/kousik/gz_current_plugin/build/CMakeFiles/list_install_components.dir
+/home/kousik/gz_current_plugin/build/CMakeFiles/install.dir
+/home/kousik/gz_current_plugin/build/CMakeFiles/install/local.dir
+/home/kousik/gz_current_plugin/build/CMakeFiles/install/strip.dir

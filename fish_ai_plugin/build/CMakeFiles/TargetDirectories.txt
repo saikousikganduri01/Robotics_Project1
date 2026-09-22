@@ -1,0 +1,3 @@
+/home/kousik/fish_ai_plugin/build/CMakeFiles/FishAI.dir
+/home/kousik/fish_ai_plugin/build/CMakeFiles/edit_cache.dir
+/home/kousik/fish_ai_plugin/build/CMakeFiles/rebuild_cache.dir
